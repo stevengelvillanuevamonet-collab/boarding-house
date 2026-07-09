@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Boarding House Ledger</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="sidebar">
+      <div class="brand">Boarding House<small>Admin Ledger</small></div>
+
+      <button class="nav-item active" data-section="overview">Overview</button>
+      <button class="nav-item" data-section="rooms">Rooms</button>
+      <button class="nav-item" data-section="tenants">Tenants</button>
+      <button class="nav-item" data-section="payments">Payments</button>
+
+      <div class="sidebar-footer">
+        <div style="font-size:0.82rem; color:#B7C4BE; margin-bottom:10px;" id="admin-name"></div>
+        <button class="nav-item" id="signout-btn">Sign out</button>
+      </div>
+    </nav>
+
+    <main class="main">
+      <!-- ============ OVERVIEW ============ -->
+      <section id="section-overview">
+        <div class="main-header">
+          <div><h2>Overview</h2><p class="hint-text">Today, <span id="today-date"></span></p></div>
+        </div>
+        <div class="stat-grid" id="overview-stats"></div>
+        <div class="card">
+          <h3 style="font-size:1rem;">Due or overdue this month</h3>
+          <div id="overview-due-table"></div>
+        </div>
+      </section>
+
+      <!-- ============ ROOMS ============ -->
+      <section id="section-rooms" style="display:none;">
+        <div class="main-header">
+          <div><h2>Rooms</h2><p class="hint-text">Manage room inventory and status</p></div>
+          <button class="btn" id="add-room-btn">+ Add room</button>
+        </div>
+        <div class="card"><div id="rooms-table"></div></div>
+      </section>
+
+      <!-- ============ TENANTS ============ -->
+      <section id="section-tenants" style="display:none;">
+        <div class="main-header">
+          <div><h2>Tenants</h2><p class="hint-text">Active and past tenancies</p></div>
+          <button class="btn" id="add-tenancy-btn">+ Assign room to tenant</button>
+        </div>
+        <p class="hint-text card" style="margin-bottom:16px;">
+          To add a new tenant: create their login first in the
+          <strong>Supabase Dashboard → Authentication → Add user</strong>, then come back here
+          and click "Assign room to tenant" to link them to a room.
+        </p>
+        <div class="card"><div id="tenants-table"></div></div>
+      </section>
+
+      <!-- ============ PAYMENTS ============ -->
+      <section id="section-payments" style="display:none;">
+        <div class="main-header">
+          <div><h2>Payments</h2><p class="hint-text">Track monthly rent per tenancy</p></div>
+          <button class="btn" id="generate-month-btn">Generate this month's rent</button>
+        </div>
+        <div class="card"><div id="payments-table"></div></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal root -->
+  <div id="modal-root"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabaseClient.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/admin.js"></script>
+</body>
+</html>
