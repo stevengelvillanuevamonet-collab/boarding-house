@@ -62,7 +62,10 @@
       <section id="section-payments" style="display:none;">
         <div class="main-header">
           <div><h2>Payments</h2><p class="hint-text">Track monthly rent per tenancy</p></div>
-          <button class="btn" id="generate-month-btn">Generate this month's rent</button>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" id="add-payment-btn">+ Add payment</button>
+            <button class="btn" id="generate-month-btn">Generate this month's rent</button>
+          </div>
         </div>
         <div class="card"><div id="payments-table"></div></div>
       </section>
