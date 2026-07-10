@@ -12,6 +12,19 @@ let state = {
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
+// How many beds in this room are currently taken by an active tenancy.
+function occupiedCount(roomId) {
+  return state.tenancies.filter((t) => t.room_id === roomId && t.status === 'active').length;
+}
+
+// Rooms with at least one free bed, not under maintenance.
+function roomsWithSpace(excludeTenancyId = null) {
+  return state.rooms
+    .filter((r) => r.status !== 'maintenance')
+    .map((r) => ({ ...r, taken: occupiedCount(r.id) }))
+    .filter((r) => r.taken < r.capacity || (excludeTenancyId && state.tenancies.find((t) => t.id === excludeTenancyId)?.room_id === r.id));
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const profile = await requireAuth('admin');
   if (!profile) return;
@@ -72,18 +85,18 @@ function renderAll() {
 // OVERVIEW
 // ------------------------------------------------------------
 function renderOverview() {
-  const occupied = state.rooms.filter((r) => r.status === 'occupied').length;
-  const vacant = state.rooms.filter((r) => r.status === 'vacant').length;
-  const activeTenants = state.tenancies.filter((t) => t.status === 'active').length;
+  const totalBeds = state.rooms.reduce((sum, r) => sum + r.capacity, 0);
+  const bedsOccupied = state.tenancies.filter((t) => t.status === 'active').length;
+  const bedsAvailable = totalBeds - bedsOccupied;
   const outstanding = state.payments
     .filter((p) => p.status !== 'paid')
     .reduce((sum, p) => sum + (p.amount_due - p.amount_paid), 0);
 
   document.getElementById('overview-stats').innerHTML = `
     <div class="stat-card"><div class="label">Total rooms</div><div class="value">${state.rooms.length}</div></div>
-    <div class="stat-card"><div class="label">Occupied</div><div class="value">${occupied}</div></div>
-    <div class="stat-card"><div class="label">Vacant</div><div class="value">${vacant}</div></div>
-    <div class="stat-card"><div class="label">Active tenants</div><div class="value">${activeTenants}</div></div>
+    <div class="stat-card"><div class="label">Total beds</div><div class="value">${totalBeds}</div></div>
+    <div class="stat-card"><div class="label">Beds occupied</div><div class="value">${bedsOccupied}</div></div>
+    <div class="stat-card"><div class="label">Beds available</div><div class="value">${bedsAvailable}</div></div>
     <div class="stat-card"><div class="label">Outstanding</div><div class="value">${peso(outstanding)}</div></div>
   `;
 
@@ -105,19 +118,26 @@ function renderRooms() {
   }
   el.innerHTML = `
     <table>
-      <thead><tr><th>Room</th><th>Monthly rate</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Room</th><th>Monthly rate</th><th>Beds</th><th>Status</th><th></th></tr></thead>
       <tbody>
-        ${state.rooms.map((r) => `
+        ${state.rooms.map((r) => {
+          const taken = occupiedCount(r.id);
+          const isMaintenance = r.status === 'maintenance';
+          const badgeClass = isMaintenance ? 'maintenance' : (taken >= r.capacity ? 'occupied' : 'vacant');
+          const badgeLabel = isMaintenance ? 'Maintenance' : (taken >= r.capacity ? 'Full' : 'Available');
+          return `
           <tr>
             <td>${r.room_number}</td>
             <td class="mono">${peso(r.monthly_rate)}</td>
-            <td><span class="badge ${r.status}">${r.status}</span></td>
+            <td class="mono">${taken} / ${r.capacity}</td>
+            <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
             <td style="white-space:nowrap;">
               <button class="btn btn-secondary edit-room-btn" data-id="${r.id}" style="font-size:0.8rem; padding:6px 10px;">Edit</button>
               <button class="btn btn-danger delete-room-btn" data-id="${r.id}" data-number="${r.room_number}" style="font-size:0.8rem; padding:6px 10px;">Delete</button>
             </td>
           </tr>
-        `).join('')}
+        `;
+        }).join('')}
       </tbody>
     </table>
   `;
@@ -155,8 +175,12 @@ function openAddRoomModal() {
         <input id="room_number" required placeholder="e.g. Room 1" />
       </div>
       <div class="form-group">
-        <label for="monthly_rate">Monthly rate (₱)</label>
+        <label for="monthly_rate">Monthly rate per bed (₱)</label>
         <input id="monthly_rate" type="number" min="0" step="0.01" required />
+      </div>
+      <div class="form-group">
+        <label for="capacity">Number of beds</label>
+        <input id="capacity" type="number" min="1" step="1" required value="1" />
       </div>
       <p class="error-text" id="room-form-error"></p>
       <div style="display:flex; gap:10px; margin-top:8px;">
@@ -171,7 +195,8 @@ function openAddRoomModal() {
     e.preventDefault();
     const room_number = document.getElementById('room_number').value.trim();
     const monthly_rate = parseFloat(document.getElementById('monthly_rate').value);
-    const { error } = await supabase.from('rooms').insert({ room_number, monthly_rate });
+    const capacity = parseInt(document.getElementById('capacity').value, 10);
+    const { error } = await supabase.from('rooms').insert({ room_number, monthly_rate, capacity });
     if (error) {
       document.getElementById('room-form-error').textContent = error.message.includes('duplicate')
         ? 'A room with that number already exists.'
@@ -187,6 +212,7 @@ function openAddRoomModal() {
 function openEditRoomModal(roomId) {
   const room = state.rooms.find((r) => r.id === roomId);
   if (!room) return;
+  const taken = occupiedCount(roomId);
 
   renderModal(`
     <h3>Edit room</h3>
@@ -196,14 +222,18 @@ function openEditRoomModal(roomId) {
         <input id="edit_room_number" required value="${room.room_number}" />
       </div>
       <div class="form-group">
-        <label for="edit_monthly_rate">Monthly rate (₱)</label>
+        <label for="edit_monthly_rate">Monthly rate per bed (₱)</label>
         <input id="edit_monthly_rate" type="number" min="0" step="0.01" required value="${room.monthly_rate}" />
+      </div>
+      <div class="form-group">
+        <label for="edit_capacity">Number of beds</label>
+        <input id="edit_capacity" type="number" min="${taken}" step="1" required value="${room.capacity}" />
+        ${taken > 0 ? `<p class="hint-text">${taken} bed${taken === 1 ? '' : 's'} currently occupied — can't go below that.</p>` : ''}
       </div>
       <div class="form-group">
         <label for="edit_status">Status</label>
         <select id="edit_status">
-          <option value="vacant" ${room.status === 'vacant' ? 'selected' : ''}>Vacant</option>
-          <option value="occupied" ${room.status === 'occupied' ? 'selected' : ''}>Occupied</option>
+          <option value="vacant" ${room.status !== 'maintenance' ? 'selected' : ''}>Available</option>
           <option value="maintenance" ${room.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
         </select>
       </div>
@@ -220,9 +250,15 @@ function openEditRoomModal(roomId) {
     e.preventDefault();
     const room_number = document.getElementById('edit_room_number').value.trim();
     const monthly_rate = parseFloat(document.getElementById('edit_monthly_rate').value);
+    const capacity = parseInt(document.getElementById('edit_capacity').value, 10);
     const status = document.getElementById('edit_status').value;
 
-    const { error } = await supabase.from('rooms').update({ room_number, monthly_rate, status }).eq('id', roomId);
+    if (capacity < taken) {
+      document.getElementById('edit-room-form-error').textContent = `Can't be less than ${taken}, the number of beds currently occupied.`;
+      return;
+    }
+
+    const { error } = await supabase.from('rooms').update({ room_number, monthly_rate, capacity, status }).eq('id', roomId);
     if (error) {
       document.getElementById('edit-room-form-error').textContent = error.message.includes('duplicate')
         ? 'A room with that number already exists.'
@@ -266,9 +302,8 @@ function renderTenants() {
   `;
   document.querySelectorAll('.end-tenancy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('End this tenancy? The room will be marked vacant.')) return;
+      if (!confirm('End this tenancy? The bed will free up for a new tenant.')) return;
       await supabase.from('tenancies').update({ status: 'ended', move_out_date: new Date().toISOString().slice(0, 10) }).eq('id', btn.dataset.id);
-      await supabase.from('rooms').update({ status: 'vacant' }).eq('id', btn.dataset.room);
       await loadAll();
       renderAll();
     });
@@ -279,14 +314,11 @@ function renderTenants() {
   document.querySelectorAll('.delete-tenancy-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const warn = btn.dataset.status === 'active'
-        ? 'This tenancy is still active and its room will be marked vacant. Deleting also removes all of its payment records. Continue?'
+        ? 'This tenancy is still active. Deleting also removes all of its payment records. Continue?'
         : 'Deleting this tenancy also removes all of its payment records. Continue?';
       if (!confirm(warn)) return;
 
       await supabase.from('tenancies').delete().eq('id', btn.dataset.id);
-      if (btn.dataset.status === 'active') {
-        await supabase.from('rooms').update({ status: 'vacant' }).eq('id', btn.dataset.room);
-      }
       await loadAll();
       renderAll();
     });
@@ -297,8 +329,8 @@ function openEditTenancyModal(tenancyId) {
   const tenancy = state.tenancies.find((t) => t.id === tenancyId);
   if (!tenancy) return;
 
-  // Room choices: the tenancy's current room, plus any currently vacant rooms.
-  const roomOptions = state.rooms.filter((r) => r.status === 'vacant' || r.id === tenancy.room_id);
+  // Room choices: any room with a free bed, plus the tenancy's current room.
+  const roomOptions = roomsWithSpace(tenancyId);
 
   renderModal(`
     <h3>Edit tenancy</h3>
@@ -307,7 +339,7 @@ function openEditTenancyModal(tenancyId) {
       <div class="form-group">
         <label for="edit_room_id">Room</label>
         <select id="edit_room_id">
-          ${roomOptions.map((r) => `<option value="${r.id}" ${r.id === tenancy.room_id ? 'selected' : ''}>${r.room_number} — ${peso(r.monthly_rate)}</option>`).join('')}
+          ${roomOptions.map((r) => `<option value="${r.id}" ${r.id === tenancy.room_id ? 'selected' : ''}>${r.room_number} — ${peso(r.monthly_rate)} (${occupiedCount(r.id)}/${r.capacity} beds)</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -335,7 +367,6 @@ function openEditTenancyModal(tenancyId) {
     const newRoomId = document.getElementById('edit_room_id').value;
     const move_in_date = document.getElementById('edit_move_in_date').value;
     const status = document.getElementById('edit_tenancy_status').value;
-    const oldRoomId = tenancy.room_id;
 
     const update = { room_id: newRoomId, move_in_date, status };
     if (status === 'ended' && !tenancy.move_out_date) update.move_out_date = new Date().toISOString().slice(0, 10);
@@ -347,16 +378,6 @@ function openEditTenancyModal(tenancyId) {
       return;
     }
 
-    // Keep room statuses in sync with the change.
-    if (status === 'active') {
-      await supabase.from('rooms').update({ status: 'occupied' }).eq('id', newRoomId);
-      if (oldRoomId !== newRoomId) {
-        await supabase.from('rooms').update({ status: 'vacant' }).eq('id', oldRoomId);
-      }
-    } else {
-      await supabase.from('rooms').update({ status: 'vacant' }).eq('id', oldRoomId);
-    }
-
     closeModal();
     await loadAll();
     renderAll();
@@ -365,7 +386,7 @@ function openEditTenancyModal(tenancyId) {
 
 async function openAddTenancyModal() {
   const { data: tenantProfiles } = await supabase.from('profiles').select('*').eq('role', 'tenant').order('full_name');
-  const vacantRooms = state.rooms.filter((r) => r.status === 'vacant');
+  const availableRooms = roomsWithSpace();
 
   if (!tenantProfiles || !tenantProfiles.length) {
     renderModal(`
@@ -390,9 +411,9 @@ async function openAddTenancyModal() {
       <div class="form-group">
         <label for="room_id">Room</label>
         <select id="room_id" required>
-          ${vacantRooms.length
-            ? vacantRooms.map((r) => `<option value="${r.id}" data-rate="${r.monthly_rate}">${r.room_number} — ${peso(r.monthly_rate)}</option>`).join('')
-            : `<option value="" disabled selected>No vacant rooms</option>`}
+          ${availableRooms.length
+            ? availableRooms.map((r) => `<option value="${r.id}" data-rate="${r.monthly_rate}">${r.room_number} — ${peso(r.monthly_rate)} (${occupiedCount(r.id)}/${r.capacity} beds)</option>`).join('')
+            : `<option value="" disabled selected>No rooms with a free bed</option>`}
         </select>
       </div>
       <div class="form-group">
@@ -402,7 +423,7 @@ async function openAddTenancyModal() {
       <p class="error-text" id="tenancy-form-error"></p>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button type="button" class="btn btn-secondary btn-block" id="modal-cancel">Cancel</button>
-        <button type="submit" class="btn btn-block" ${vacantRooms.length ? '' : 'disabled'}>Save</button>
+        <button type="submit" class="btn btn-block" ${availableRooms.length ? '' : 'disabled'}>Save</button>
       </div>
     </form>
   `);
@@ -419,7 +440,6 @@ async function openAddTenancyModal() {
       document.getElementById('tenancy-form-error').textContent = 'Could not save. Please try again.';
       return;
     }
-    await supabase.from('rooms').update({ status: 'occupied' }).eq('id', room_id);
     closeModal();
     await loadAll();
     renderAll();
