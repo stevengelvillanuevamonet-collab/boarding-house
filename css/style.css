@@ -55,10 +55,67 @@ a { color: var(--ledger); }
 .auth-shell {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  gap: 28px;
+  background: radial-gradient(ellipse at top, #F4F5F1 0%, var(--paper) 60%);
 }
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--paper-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 40px 36px 32px;
+  box-shadow: 0 1px 3px rgba(30, 42, 40, 0.06), 0 12px 32px rgba(30, 42, 40, 0.07);
+  text-align: center;
+}
+
+.auth-mark {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--ledger-dark);
+  color: #EDEFEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.auth-title {
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+
+.auth-subtitle {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0 0 28px;
+}
+
+.auth-form { text-align: left; }
+
+.auth-note {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.auth-footer {
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.auth-footer p { margin: 0; }
 
 .app-shell {
   min-height: 100vh;
@@ -345,3 +402,99 @@ tr:last-child td { border-bottom: none; }
 .badge.vacant { background: var(--paid-bg); color: var(--paid); }
 .badge.occupied { background: var(--pending-bg); color: var(--gold); }
 .badge.maintenance { background: var(--overdue-bg); color: var(--overdue); }
+
+/* ---------------- Receipt ---------------- */
+.receipt-modal { max-width: 380px; padding: 0; overflow: hidden; }
+
+.receipt-print {
+  padding: 28px 26px 24px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.receipt-mark {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--ledger-dark);
+  color: #EDEFEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+
+.receipt-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.receipt-header p {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin: 1px 0;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 0.82rem;
+}
+
+.receipt-row span:first-child { color: var(--ink-soft); }
+
+.receipt-total { font-weight: 600; color: var(--ledger-dark); font-size: 0.95rem; }
+
+.receipt-divider {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 10px 0;
+}
+
+.receipt-signature {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.receipt-sign-line {
+  width: 70%;
+  margin: 0 auto 6px;
+  border-top: 1px solid var(--ink);
+}
+
+.receipt-signature p {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.receipt-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 26px 22px;
+  border-top: 1px solid var(--border);
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #receipt-print-area, #receipt-print-area * { visibility: visible; }
+  #receipt-print-area {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    max-width: 380px;
+    height: fit-content;
+  }
+  .no-print { display: none !important; }
+}

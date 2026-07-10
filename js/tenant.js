@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   el.innerHTML = (payments && payments.length)
     ? `
       <table>
-        <thead><tr><th>Month</th><th>Amount due</th><th>Amount paid</th><th>Due date</th><th>Status</th></tr></thead>
+        <thead><tr><th>Month</th><th>Amount due</th><th>Amount paid</th><th>Due date</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${payments.map((p) => `
             <tr>
@@ -56,10 +56,18 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td class="mono">${peso2(p.amount_paid)}</td>
               <td class="mono">${fmtDate2(p.due_date)}</td>
               <td><span class="stamp ${p.status}">${p.status}</span></td>
+              <td>${p.status === 'paid' ? `<button class="btn btn-secondary tenant-receipt-btn" data-id="${p.id}" style="font-size:0.8rem; padding:6px 10px;">Receipt</button>` : ''}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     `
     : `<div class="empty-state">No payment records yet.</div>`;
+
+  document.querySelectorAll('.tenant-receipt-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = (payments || []).find((row) => row.id === btn.dataset.id);
+      if (p) openReceiptModal({ ...p, tenancy: { room: tenancy.room, tenant: profile } });
+    });
+  });
 });

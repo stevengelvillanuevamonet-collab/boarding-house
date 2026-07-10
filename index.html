@@ -8,13 +8,12 @@
 </head>
 <body>
   <div class="auth-shell">
-    <div class="card" style="width:100%; max-width:380px;">
-      <div style="text-align:center; margin-bottom:24px;">
-        <h1 style="font-size:1.5rem;">Boarding House Ledger</h1>
-        <p class="hint-text" style="margin-top:0;">Sign in to manage or view your tenancy</p>
-      </div>
+    <div class="auth-card">
+      <div class="auth-mark">⌂</div>
+      <h1 class="auth-title">Boarding House Ledger</h1>
+      <p class="auth-subtitle">Sign in to continue</p>
 
-      <form id="login-form">
+      <form id="login-form" class="auth-form">
         <div class="form-group">
           <label for="email">Email</label>
           <input type="email" id="email" name="email" required autocomplete="email" />
@@ -27,9 +26,14 @@
         <p id="login-error" class="error-text"></p>
       </form>
 
-      <p class="hint-text" style="text-align:center; margin-top:20px;">
-        New tenant accounts are created by the admin. Contact the boarding house owner if you need access.
+      <p class="auth-note">
+        New tenant accounts are created by the admin.
       </p>
+    </div>
+
+    <div class="auth-footer">
+      <p>616 M.H Del Pilar St., Brgy. Datu Silongan, Butuan City</p>
+      <p>0991 881 8929 &nbsp;·&nbsp; 0951 816 1660</p>
     </div>
   </div>
 

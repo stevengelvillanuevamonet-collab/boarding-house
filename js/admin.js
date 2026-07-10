@@ -452,6 +452,7 @@ function tablePayments(rows, { showActions = false, fullActions = false } = {}) 
             ${showActions ? `
               <td style="white-space:nowrap;">
                 ${p.status !== 'paid' ? `<button class="btn mark-paid-btn" data-id="${p.id}" data-due="${p.amount_due}" style="font-size:0.8rem; padding:6px 10px;">Mark paid</button>` : ''}
+                ${p.status === 'paid' ? `<button class="btn btn-secondary receipt-btn" data-id="${p.id}" style="font-size:0.8rem; padding:6px 10px;">Receipt</button>` : ''}
                 ${fullActions ? `
                   <button class="btn btn-secondary edit-payment-btn" data-id="${p.id}" style="font-size:0.8rem; padding:6px 10px;">Edit</button>
                   <button class="btn btn-danger delete-payment-btn" data-id="${p.id}" style="font-size:0.8rem; padding:6px 10px;">Delete</button>
@@ -482,6 +483,12 @@ function bindPaymentActions() {
       }).eq('id', btn.dataset.id);
       await loadAll();
       renderAll();
+    });
+  });
+  document.querySelectorAll('.receipt-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const payment = state.payments.find((p) => p.id === btn.dataset.id);
+      if (payment) openReceiptModal(payment);
     });
   });
   document.querySelectorAll('.edit-payment-btn').forEach((btn) => {
