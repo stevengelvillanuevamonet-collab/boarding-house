@@ -1,12 +1,12 @@
-// ============================================================
+
 // Admin dashboard
-// ============================================================
+
 
 let state = {
   profile: null,
   rooms: [],
-  tenancies: [],   // joined with room + tenant profile
-  payments: [],    // joined with tenancy -> room + tenant profile
+  tenancies: [],   
+  payments: [],    
 };
 
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
