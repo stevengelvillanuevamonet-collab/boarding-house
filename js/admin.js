@@ -1,12 +1,12 @@
-
+// ============================================================
 // Admin dashboard
-
+// ============================================================
 
 let state = {
   profile: null,
   rooms: [],
-  tenancies: [],   
-  payments: [],    
+  tenancies: [],   // joined with room + tenant profile
+  payments: [],    // joined with tenancy -> room + tenant profile
 };
 
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
@@ -391,8 +391,9 @@ async function openAddTenancyModal() {
   if (!tenantProfiles || !tenantProfiles.length) {
     renderModal(`
       <h3>No tenant accounts found</h3>
-      <p class="hint-text">Create a login for the tenant first in the Supabase Dashboard under
-      Authentication → Add user, then return here to assign them a room.</p>
+      <p class="hint-text">Ask the tenant to create their own account on the sign-in page first
+      (or add one yourself via the Supabase Dashboard under Authentication → Add user),
+      then return here to assign them a room.</p>
       <button class="btn btn-block" id="modal-cancel">Close</button>
     `);
     document.getElementById('modal-cancel').addEventListener('click', closeModal);

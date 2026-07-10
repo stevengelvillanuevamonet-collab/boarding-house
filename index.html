@@ -3,38 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign in — Golden Corner Boarding House</title>
+  <title>Sign in — Boarding House Ledger</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <div class="auth-shell">
     <div class="auth-card">
       <div class="auth-mark">⌂</div>
-      <h1 class="auth-title">Golden Corner Boarding House</h1>
-      <p class="auth-subtitle">Sign in to continue</p>
+      <h1 class="auth-title">Boarding House Ledger</h1>
 
-      <form id="login-form" class="auth-form">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required autocomplete="email" />
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required autocomplete="current-password" />
-        </div>
-        <button type="submit" class="btn btn-block">Sign in</button>
-        <p id="login-error" class="error-text"></p>
-      </form>
+      <!-- ============ LOGIN PANEL ============ -->
+      <div id="login-panel">
+        <p class="auth-subtitle">Sign in to continue</p>
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-block">Sign in</button>
+          <p id="login-error" class="error-text"></p>
+        </form>
+        <p class="auth-note">
+          New tenant? <a href="#" id="show-signup">Create an account</a>
+        </p>
+      </div>
 
-      <p class="auth-note">
-        New tenant accounts are created by the admin.
-      </p>
+      <!-- ============ SIGN-UP PANEL ============ -->
+      <div id="signup-panel" style="display:none;">
+        <p class="auth-subtitle">Create your tenant account</p>
+        <form id="signup-form" class="auth-form">
+          <div class="form-group">
+            <label for="signup_full_name">Full name</label>
+            <input type="text" id="signup_full_name" required autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="signup_email">Email</label>
+            <input type="email" id="signup_email" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signup_password">Password</label>
+            <input type="password" id="signup_password" required minlength="6" autocomplete="new-password" />
+            <p class="hint-text">At least 6 characters.</p>
+          </div>
+          <button type="submit" class="btn btn-block">Create account</button>
+          <p id="signup-error" class="error-text"></p>
+          <p id="signup-success" class="hint-text" style="color:var(--paid);"></p>
+        </form>
+        <p class="auth-note">
+          Already have an account? <a href="#" id="show-login">Sign in</a>
+        </p>
+      </div>
     </div>
 
     <div class="auth-footer">
       <p>616 M.H Del Pilar St., Brgy. Datu Silongan, Butuan City</p>
       <p>0991 881 8929 &nbsp;·&nbsp; 0951 816 1660</p>
-      <p>Tita Villanueva Monet &nbsp;·&nbsp; Stevengel Monet</p>
     </div>
   </div>
 
