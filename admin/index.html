@@ -15,6 +15,7 @@
       <button class="nav-item" data-section="rooms">Rooms</button>
       <button class="nav-item" data-section="tenants">Tenants</button>
       <button class="nav-item" data-section="payments">Payments</button>
+      <button class="nav-item" data-section="announcements">Announcements</button>
 
       <div class="sidebar-footer">
         <div style="font-size:0.82rem; color:#B7C4BE; margin-bottom:10px;" id="admin-name"></div>
@@ -68,6 +69,15 @@
           </div>
         </div>
         <div class="card"><div id="payments-table"></div></div>
+      </section>
+
+      <!-- ============ ANNOUNCEMENTS ============ -->
+      <section id="section-announcements" style="display:none;">
+        <div class="main-header">
+          <div><h2>Announcements</h2><p class="hint-text">Notices shown on every tenant's dashboard</p></div>
+          <button class="btn" id="add-announcement-btn">+ New announcement</button>
+        </div>
+        <div id="announcements-list"></div>
       </section>
     </main>
   </div>

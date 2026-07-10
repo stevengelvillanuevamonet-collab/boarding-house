@@ -13,6 +13,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('tenant-name').textContent = profile.full_name;
   document.getElementById('signout-btn').addEventListener('click', signOut);
 
+  // Announcements are visible regardless of tenancy status.
+  const { data: announcements } = await supabase
+    .from('announcements')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const annEl = document.getElementById('announcements-section');
+  if (announcements && announcements.length) {
+    annEl.innerHTML = announcements.map((a) => `
+      <div class="card" style="margin-bottom:10px;">
+        <h3 style="font-size:0.95rem; margin-bottom:2px;">${a.title}</h3>
+        <p class="hint-text" style="margin:0 0 10px;">${fmtDate2(a.created_at)}</p>
+        <p style="white-space:pre-wrap; margin:0;">${a.body}</p>
+      </div>
+    `).join('');
+  }
+
   const { data: tenancy } = await supabase
     .from('tenancies')
     .select('*, room:rooms(*)')
@@ -41,6 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     <div class="stat-card"><div class="label">Monthly rate</div><div class="value">${peso2(tenancy.room.monthly_rate)}</div></div>
     <div class="stat-card"><div class="label">Outstanding balance</div><div class="value">${peso2(outstanding)}</div></div>
     <div class="stat-card"><div class="label">Next due date</div><div class="value" style="font-size:1.1rem;">${nextDue ? fmtDate2(nextDue.due_date) : 'None due'}</div></div>
+    <div class="stat-card"><div class="label">Security deposit</div><div class="value">${peso2(tenancy.deposit_amount)}</div><div class="hint-text">${tenancy.deposit_status}</div></div>
+    <div class="stat-card"><div class="label">Advance rent</div><div class="value">${peso2(tenancy.advance_amount)}</div><div class="hint-text">${tenancy.advance_applied ? 'applied' : 'not yet applied'}</div></div>
   `;
 
   const el = document.getElementById('tenant-payments-table');

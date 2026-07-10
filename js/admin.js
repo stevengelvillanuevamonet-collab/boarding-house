@@ -7,6 +7,7 @@ let state = {
   rooms: [],
   tenancies: [],   // joined with room + tenant profile
   payments: [],    // joined with tenancy -> room + tenant profile
+  announcements: [],
 };
 
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
@@ -58,20 +59,23 @@ function setupActions() {
   document.getElementById('add-tenancy-btn').addEventListener('click', openAddTenancyModal);
   document.getElementById('generate-month-btn').addEventListener('click', generateThisMonth);
   document.getElementById('add-payment-btn').addEventListener('click', openAddPaymentModal);
+  document.getElementById('add-announcement-btn').addEventListener('click', openAddAnnouncementModal);
 }
 
 // ------------------------------------------------------------
 // Data loading
 // ------------------------------------------------------------
 async function loadAll() {
-  const [{ data: rooms }, { data: tenancies }, { data: payments }] = await Promise.all([
+  const [{ data: rooms }, { data: tenancies }, { data: payments }, { data: announcements }] = await Promise.all([
     supabase.from('rooms').select('*').order('room_number'),
     supabase.from('tenancies').select('*, room:rooms(*), tenant:profiles(*)').order('move_in_date', { ascending: false }),
     supabase.from('payments').select('*, tenancy:tenancies(*, room:rooms(*), tenant:profiles(*))').order('for_month', { ascending: false }),
+    supabase.from('announcements').select('*, author:profiles(full_name)').order('created_at', { ascending: false }),
   ]);
   state.rooms = rooms || [];
   state.tenancies = tenancies || [];
   state.payments = payments || [];
+  state.announcements = announcements || [];
 }
 
 function renderAll() {
@@ -79,6 +83,7 @@ function renderAll() {
   renderRooms();
   renderTenants();
   renderPayments();
+  renderAnnouncements();
 }
 
 // ------------------------------------------------------------
@@ -282,13 +287,15 @@ function renderTenants() {
   }
   el.innerHTML = `
     <table>
-      <thead><tr><th>Tenant</th><th>Room</th><th>Move-in</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Tenant</th><th>Room</th><th>Move-in</th><th>Deposit</th><th>Advance</th><th>Status</th><th></th></tr></thead>
       <tbody>
         ${state.tenancies.map((t) => `
           <tr>
             <td>${t.tenant?.full_name ?? 'Unknown'}<div class="hint-text">${t.tenant?.phone ?? ''}</div></td>
             <td>${t.room?.room_number ?? '—'}</td>
             <td class="mono">${fmtDate(t.move_in_date)}</td>
+            <td class="mono">${peso(t.deposit_amount)}<div class="hint-text">${t.deposit_status}</div></td>
+            <td class="mono">${peso(t.advance_amount)}<div class="hint-text">${t.advance_applied ? 'applied' : 'not applied'}</div></td>
             <td><span class="badge ${t.status === 'active' ? 'vacant' : 'maintenance'}">${t.status}</span></td>
             <td style="white-space:nowrap;">
               <button class="btn btn-secondary edit-tenancy-btn" data-id="${t.id}" style="font-size:0.8rem; padding:6px 10px;">Edit</button>
@@ -353,6 +360,31 @@ function openEditTenancyModal(tenancyId) {
           <option value="ended" ${tenancy.status === 'ended' ? 'selected' : ''}>Ended</option>
         </select>
       </div>
+      <hr class="receipt-divider" />
+      <div class="form-group">
+        <label for="edit_deposit_amount">Security deposit (₱)</label>
+        <input id="edit_deposit_amount" type="number" min="0" step="0.01" value="${tenancy.deposit_amount}" />
+      </div>
+      <div class="form-group">
+        <label for="edit_deposit_status">Deposit status</label>
+        <select id="edit_deposit_status">
+          <option value="held" ${tenancy.deposit_status === 'held' ? 'selected' : ''}>Held</option>
+          <option value="refunded" ${tenancy.deposit_status === 'refunded' ? 'selected' : ''}>Refunded</option>
+          <option value="forfeited" ${tenancy.deposit_status === 'forfeited' ? 'selected' : ''}>Forfeited</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="edit_deposit_notes">Deposit notes (optional)</label>
+        <input id="edit_deposit_notes" placeholder="e.g. ₱500 deducted for wall damage" value="${tenancy.deposit_notes ?? ''}" />
+      </div>
+      <div class="form-group">
+        <label for="edit_advance_amount">Advance rent (₱)</label>
+        <input id="edit_advance_amount" type="number" min="0" step="0.01" value="${tenancy.advance_amount}" />
+      </div>
+      <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="edit_advance_applied" style="width:auto;" ${tenancy.advance_applied ? 'checked' : ''} />
+        <label for="edit_advance_applied" style="margin:0;">Advance has been applied to a month's rent</label>
+      </div>
       <p class="error-text" id="edit-tenancy-form-error"></p>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button type="button" class="btn btn-secondary btn-block" id="modal-cancel">Cancel</button>
@@ -367,8 +399,17 @@ function openEditTenancyModal(tenancyId) {
     const newRoomId = document.getElementById('edit_room_id').value;
     const move_in_date = document.getElementById('edit_move_in_date').value;
     const status = document.getElementById('edit_tenancy_status').value;
+    const deposit_amount = parseFloat(document.getElementById('edit_deposit_amount').value) || 0;
+    const deposit_status = document.getElementById('edit_deposit_status').value;
+    const deposit_notes = document.getElementById('edit_deposit_notes').value.trim() || null;
+    const advance_amount = parseFloat(document.getElementById('edit_advance_amount').value) || 0;
+    const advance_applied = document.getElementById('edit_advance_applied').checked;
 
-    const update = { room_id: newRoomId, move_in_date, status };
+    const update = {
+      room_id: newRoomId, move_in_date, status,
+      deposit_amount, deposit_status, deposit_notes,
+      advance_amount, advance_applied,
+    };
     if (status === 'ended' && !tenancy.move_out_date) update.move_out_date = new Date().toISOString().slice(0, 10);
     if (status === 'active') update.move_out_date = null;
 
@@ -421,6 +462,14 @@ async function openAddTenancyModal() {
         <label for="move_in_date">Move-in date</label>
         <input id="move_in_date" type="date" required value="${new Date().toISOString().slice(0, 10)}" />
       </div>
+      <div class="form-group">
+        <label for="deposit_amount">Security deposit collected (₱)</label>
+        <input id="deposit_amount" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="form-group">
+        <label for="advance_amount">Advance rent collected (₱)</label>
+        <input id="advance_amount" type="number" min="0" step="0.01" value="0" />
+      </div>
       <p class="error-text" id="tenancy-form-error"></p>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button type="button" class="btn btn-secondary btn-block" id="modal-cancel">Cancel</button>
@@ -435,8 +484,10 @@ async function openAddTenancyModal() {
     const tenant_id = document.getElementById('tenant_id').value;
     const room_id = document.getElementById('room_id').value;
     const move_in_date = document.getElementById('move_in_date').value;
+    const deposit_amount = parseFloat(document.getElementById('deposit_amount').value) || 0;
+    const advance_amount = parseFloat(document.getElementById('advance_amount').value) || 0;
 
-    const { error: tErr } = await supabase.from('tenancies').insert({ tenant_id, room_id, move_in_date });
+    const { error: tErr } = await supabase.from('tenancies').insert({ tenant_id, room_id, move_in_date, deposit_amount, advance_amount });
     if (tErr) {
       document.getElementById('tenancy-form-error').textContent = 'Could not save. Please try again.';
       return;
@@ -668,6 +719,123 @@ async function generateThisMonth() {
   }
   await loadAll();
   renderAll();
+}
+
+// ------------------------------------------------------------
+// ANNOUNCEMENTS
+// ------------------------------------------------------------
+function renderAnnouncements() {
+  const el = document.getElementById('announcements-list');
+  if (!state.announcements.length) {
+    el.innerHTML = `<div class="empty-state card">No announcements yet. Post one and it'll show up on every tenant's dashboard.</div>`;
+    return;
+  }
+  el.innerHTML = state.announcements.map((a) => `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <h3 style="font-size:1rem; margin-bottom:2px;">${a.title}</h3>
+          <p class="hint-text" style="margin:0 0 12px;">
+            ${fmtDate(a.created_at)}${a.author?.full_name ? ` · ${a.author.full_name}` : ''}
+          </p>
+        </div>
+        <div style="display:flex; gap:8px; white-space:nowrap;">
+          <button class="btn btn-secondary edit-announcement-btn" data-id="${a.id}" style="font-size:0.8rem; padding:6px 10px;">Edit</button>
+          <button class="btn btn-danger delete-announcement-btn" data-id="${a.id}" style="font-size:0.8rem; padding:6px 10px;">Delete</button>
+        </div>
+      </div>
+      <p style="white-space:pre-wrap; margin:0;">${a.body}</p>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.edit-announcement-btn').forEach((btn) => {
+    btn.addEventListener('click', () => openEditAnnouncementModal(btn.dataset.id));
+  });
+  document.querySelectorAll('.delete-announcement-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this announcement?')) return;
+      await supabase.from('announcements').delete().eq('id', btn.dataset.id);
+      await loadAll();
+      renderAll();
+    });
+  });
+}
+
+function openAddAnnouncementModal() {
+  renderModal(`
+    <h3>New announcement</h3>
+    <form id="add-announcement-form">
+      <div class="form-group">
+        <label for="ann_title">Title</label>
+        <input id="ann_title" required placeholder="e.g. Water interruption Friday" />
+      </div>
+      <div class="form-group">
+        <label for="ann_body">Message</label>
+        <textarea id="ann_body" rows="4" required></textarea>
+      </div>
+      <p class="error-text" id="add-announcement-form-error"></p>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-block" id="modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-block">Post</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('add-announcement-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('ann_title').value.trim();
+    const body = document.getElementById('ann_body').value.trim();
+
+    const { error } = await supabase.from('announcements').insert({ title, body, created_by: state.profile.id });
+    if (error) {
+      document.getElementById('add-announcement-form-error').textContent = 'Could not post. Please try again.';
+      return;
+    }
+    closeModal();
+    await loadAll();
+    renderAll();
+  });
+}
+
+function openEditAnnouncementModal(id) {
+  const a = state.announcements.find((x) => x.id === id);
+  if (!a) return;
+
+  renderModal(`
+    <h3>Edit announcement</h3>
+    <form id="edit-announcement-form">
+      <div class="form-group">
+        <label for="edit_ann_title">Title</label>
+        <input id="edit_ann_title" required value="${a.title}" />
+      </div>
+      <div class="form-group">
+        <label for="edit_ann_body">Message</label>
+        <textarea id="edit_ann_body" rows="4" required>${a.body}</textarea>
+      </div>
+      <p class="error-text" id="edit-announcement-form-error"></p>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-block" id="modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-block">Save changes</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('edit-announcement-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('edit_ann_title').value.trim();
+    const body = document.getElementById('edit_ann_body').value.trim();
+
+    const { error } = await supabase.from('announcements').update({ title, body }).eq('id', id);
+    if (error) {
+      document.getElementById('edit-announcement-form-error').textContent = 'Could not save changes. Please try again.';
+      return;
+    }
+    closeModal();
+    await loadAll();
+    renderAll();
+  });
 }
 
 // ------------------------------------------------------------
